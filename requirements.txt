@@ -6,4 +6,4 @@ fal-client
 feedparser
 beautifulsoup4
 lxml
-ddgs
+duckduckgo-search
