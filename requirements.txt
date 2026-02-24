@@ -3,3 +3,6 @@ requests
 python-dotenv
 tweepy
 fal-client
+feedparser
+beautifulsoup4
+lxml

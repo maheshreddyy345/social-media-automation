@@ -14,7 +14,9 @@ import time
 import base64
 import requests
 import tweepy
-import fal_client
+import feedparser
+from bs4 import BeautifulSoup
+from duckduckgo_search import DDGS
 
 from datetime import datetime
 from pathlib import Path
@@ -32,10 +34,8 @@ TELEGRAM_CHAT_ID    = os.getenv("TELEGRAM_CHAT_ID")
 # ── Validate keys up front ───────────────────────────────────────────────────
 def validate_config():
     missing = []
-    if not OPENAI_API_KEY or "your_openai" in OPENAI_API_KEY:
-        missing.append("OPENAI_API_KEY")
-    if not PERPLEXITY_API_KEY or "your_perplexity" in PERPLEXITY_API_KEY:
-        missing.append("PERPLEXITY_API_KEY")
+    if not os.getenv("XAI_API_KEY"):
+        missing.append("XAI_API_KEY")
     if not TELEGRAM_BOT_TOKEN or "your_telegram_bot" in TELEGRAM_BOT_TOKEN:
         missing.append("TELEGRAM_BOT_TOKEN")
         
@@ -50,123 +50,231 @@ def validate_config():
         )
 
 # ── Clients ──────────────────────────────────────────────────────────────────
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+# Using OpenAI library but pointing to xAI for Grok-2 (uncensored, fearless analysis)
+xai_client = OpenAI(
+    api_key=os.getenv("XAI_API_KEY"),
+    base_url="https://api.x.ai/v1",
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# STEP 1: FETCH NEWS via Perplexity API
+# AGENT 1: THE SCRAPER (RSS Feed Extractor)
 # ═══════════════════════════════════════════════════════════════════════════
-def fetch_latest_news() -> dict:
-    """Queries Perplexity for the most impactful recent Indian political news."""
-    print("\n[1/3] 📡 Fetching latest Indian political news from Perplexity...")
+def agent1_scrape_rss() -> list:
+    """Scrapes top Indian independent media RSS feeds for the latest political news."""
+    print("\n[1/4] 🕷️  AGENT 1 (Scraper): Gathering raw intelligence from independent Indian media...")
+    
+    rss_feeds = [
+        {"name": "The Wire", "url": "https://thewire.in/rss"},
+        {"name": "The Hindu (National)", "url": "https://www.thehindu.com/news/national/feeder/default.rss"},
+        {"name": "Deccan Herald (National)", "url": "https://www.deccanherald.com/national/rssfeed.xml"},
+        {"name": "NDTV (Latest)", "url": "https://feeds.feedburner.com/ndtvnews-latest"},
+        {"name": "Livemint (Politics)", "url": "https://www.livemint.com/rss/politics"}
+    ]
+
+    all_headlines = []
+    
+    # Keyword filter to only grab highly relevant, hard-hitting stories
+    keywords = ["collapse", "scam", "leak", "corruption", "protest", "unemployment", "inflation", "bridge", "hospital", "modi", "bjp", "congress", "railway", "infrastructure", "debt", "crisis", "arrest"]
+
+    for source in rss_feeds:
+        try:
+            feed = feedparser.parse(source["url"])
+            if not feed.entries:
+                continue
+                
+            # Take up to 15 recent articles per feed
+            for entry in feed.entries[:15]:
+                title = entry.title
+                summary = entry.get("summary", "")
+                link = entry.get("link", "")
+                
+                # Simple keyword check
+                combined_text = (title + " " + summary).lower()
+                if any(kw in combined_text for kw in keywords):
+                    all_headlines.append({
+                        "source": source["name"],
+                        "title": title,
+                        "url": link,
+                        "summary": summary[:300] + "..." if len(summary) > 300 else summary
+                    })
+        except Exception as e:
+            print(f"  ❌ Error scraping {source['name']}: {e}")
+
+    print(f"  → Agent 1 gathered {len(all_headlines)} highly relevant news articles.")
+    return all_headlines
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AGENT 2: THE CURATOR (Grok-2 News Evaluator)
+# ═══════════════════════════════════════════════════════════════════════════
+def agent2_curate_news(headlines: list) -> dict:
+    """Uses Grok-2 to score all scraped headlines and pick the absolute worst government failure."""
+    print("[2/4] 🧠 AGENT 2 (Curator): Scoring articles and selecting the most devastating daily failure with Grok-2...")
+
+    if not headlines:
+        raise ValueError("No headlines found to curate!")
+
+    # Format headlines into a numbered list
+    formatted_list = ""
+    for idx, item in enumerate(headlines):
+        formatted_list += f"[{idx}] SOURCE: {item['source']} | TITLE: {item['title']} | URL: {item.get('url', 'N/A')} | SUMMARY: {item['summary']}\n\n"
 
     system_prompt = (
-        "You are an objective, data-driven research assistant for an Indian political news channel. "
-        "Your job is to find the single most important BREAKING news story (strictly from the last 24-48 hours) "
-        "that clearly demonstrates a recent failure of the government, infrastructure collapse, massive public protest, or immediate economic crisis. "
-        "Do not return old statistical reports (like last month's data). We need current, actionable, burning issues occurring right now in India. "
-        "You must extract hard data, specific monetary values, statistics, and the exact names of the public officials or institutions involved. "
-        "Return ONLY a factual JSON object with these keys: "
-        '{"headline": "...", "summary": "...", "source": "...", "key_fact": "...", "affected_people": "...", "politicians_involved": "..."}'
-        " — Just the JSON, no extra text."
+        "You are the ruthless Editor-in-Chief of the @Sawalkaro accountability channel, with a specific focus on the last 12 years of BJP governance.\n"
+        "You have a list of recent news articles. Select the single most impactful, devastating story that clearly demonstrates systemic government failure, infrastructure collapse, or massive corruption.\n\n"
+        "SCORING RUBRIC:\n"
+        "- 15 points: Massive financial scams with specific amounts, infrastructure collapse, or catastrophic policy failures directly linking to the ruling party.\n"
+        "- 10 points: Broken promises vs reality, severe economic distress (unemployment/inflation) affecting common citizens.\n"
+        "- 5 points: General political controversy, standard protests.\n"
+        "- 0 points: Generic political speeches, PR, or irrelevant news.\n\n"
+        "Return ONLY a factual JSON object with these exact keys: \n"
+        '{"headline": "...", "summary": "...", "source": "...", "url": "...", "systemic_link": "...", "key_fact": "...", "politicians_involved": "..."}'
     )
 
-    user_query = (
-        "What is the most significant, breaking news story from India in the last 24 to 48 hours "
-        "that clearly shows a failure of governance, infrastructure malfunction, or immediate crisis? "
-        "Do not give me old data or general surveys. Give me a specific incident or policy failure that just happened. "
-        "Pick the single most impactful story. Gather specific hard numbers and explicitly name the responsible authorities or leaders involved."
-    )
+    user_query = f"Here is the raw intelligence feed from the last 24 hours:\n\n{formatted_list}\n\nAnalyze this list, score them internally, and return the JSON object for the absolute most damning story."
 
     headers = {
-        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Authorization": f"Bearer {os.getenv('XAI_API_KEY')}",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "sonar-pro",
+        "model": "grok-4-1-fast-reasoning",
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_query},
+            {"role": "user", "content": user_query}
         ],
-        "max_tokens": 600,
-        "temperature": 0.3,
-        "search_recency_filter": "day",
-        "return_citations": False,
+        "temperature": 0.3
     }
-
-    response = requests.post(
-        "https://api.perplexity.ai/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=60,
-    )
+    
+    response = requests.post("https://api.x.ai/v1/chat/completions", headers=headers, json=payload)
+    if response.status_code != 200:
+        print(f"  ❌ Agent 2 API Error: {response.text}")
     response.raise_for_status()
 
     raw = response.json()["choices"][0]["message"]["content"].strip()
-    print(f"  → Perplexity found: {raw[:120]}...")
-
     clean = re.sub(r"^```json\s*|```$", "", raw, flags=re.MULTILINE).strip()
-    return json.loads(clean)
+    story_data = json.loads(clean)
+    
+    print(f"  → Agent 2 selected: {story_data.get('headline', 'N/A')}")
+    return story_data
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# STEP 2: GENERATE POST TEXT via OpenAI GPT-4o
+# AGENT 1.5: THE READER (HTML Full Text Extractor)
+# ═══════════════════════════════════════════════════════════════════════════
+def agent1_5_extract_full_text(url: str) -> str:
+    """Navigates to the news article URL and extracts the core paragraph text."""
+    if not url or url == "N/A":
+        return ""
+    print(f"[2.5] 📖 AGENT 1.5 (Reader): Extracting full article context from: {url}")
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        r = requests.get(url, headers=headers, timeout=15)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        
+        paragraphs = soup.find_all('p')
+        full_text = " ".join([p.get_text(strip=True) for p in paragraphs])
+        
+        if len(full_text) > 15000:
+            full_text = full_text[:15000] + "... [TRUNCATED]"
+            
+        print(f"  → Agent 1.5 extracted {len(full_text)} characters of detailed facts.")
+        return full_text
+    except Exception as e:
+        print(f"  ❌ Agent 1.5 Error extracting text: {e}")
+        return ""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AGENT 2.5: THE VERIFIER (Fact Checking)
+# ═══════════════════════════════════════════════════════════════════════════
+def agent2_5_verify_facts(news_data: dict) -> dict:
+    """Uses DDG search to double-check the key facts and numbers before posting."""
+    print("[2.5] 🔍 AGENT 2.5 (Verifier): Cross-checking facts against the live web...")
+    
+    headline = news_data.get('headline', '')
+    if not headline:
+        print("  ⚠️ No headline to verify, skipping.")
+        return news_data
+        
+    try:
+        search_query = f"{headline} news"
+        results = DDGS().text(search_query, max_results=3)
+        
+        verification_context = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+        print(f"  → Verified against {len(results)} live web sources.")
+        
+        # Append verification context
+        news_data['verification_context'] = verification_context
+        return news_data
+    except Exception as e:
+        print(f"  ❌ Verification Error (Continuing anyway): {e}")
+        news_data['verification_context'] = "Web search verification failed or timed out."
+        return news_data
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AGENT 3: THE DRAFTER (Grok-4-1)
 # ═══════════════════════════════════════════════════════════════════════════
 def generate_post_text(news_data: dict) -> dict:
     """Generates Twitter + Instagram post text and an image prompt."""
-    print("[2/3] ✍️  Drafting post text with GPT-4o...")
+    print("[3/4] ✍️  AGENT 3 (Drafter): Writing the analytical long-form post...")
 
     system_prompt = (
-        "You are a fearless, data-driven Indian political commentator running a highly influential "
-        "social media accountability channel. Your goal is to systematically dismantle government "
-        "propaganda and expose failures using logic, undeniable facts, and sharp, direct criticism. "
-        "You are not afraid to explicitly name those responsible, including the ruling BJP, "
-        "Prime Minister Narendra Modi, or specific union/state ministers. "
-        "Your tone is authoritative, analytical, and brutally honest, combining hard statistics with "
-        "deep empathy for the common Indian citizen. You write in clear, impactful English. "
-        "\n\nWhen given a news story, return ONLY a JSON object with these keys: "
-        '{"twitter_post": "...", "instagram_post": "...", "image_prompt": "..."}'
-        "\n\ntwitter_post rules:"
-        "\n- Since you have X Premium, you are NOT bound by character limits. "
-        "\n- Write a devastating, long-form analytical post (3-4 paragraphs). "
-        "\n- Paragraph 1: The Hook. Start with a shocking, hard-hitting summary of the failure. Name the politicians or party. "
-        "\n- Paragraph 2: The Data. Present the hard statistics, money lost, or numbers of people affected. "
-        "\n- Paragraph 3: The Accountability. Ask sharp, direct questions of the leadership (e.g., 'If the PM promised X, why is Y happening?'). "
-        "\n- End with a strong call-to-action and 4-6 highly relevant hashtags."
-        "\n\ninstagram_post rules:"
-        "\n- Adapt the Twitter post into an emotionally resonant, storytelling format suitable for Instagram. "
-        "End with a powerful citizen call-to-action. 6-8 hashtags."
-        "\n\nimage_prompt rules:"
-        "\n- Write a prompt for generating a clever, hand-drawn style editorial political cartoon."
-        "\n- Style: Indian newspaper political cartoon, watercolor and ink caricature style, similar to R.K. Laxman or Satish Acharya."
-        "\n- CRITICAL RULE TO AVOID AI BANS: Do NOT mention real political figures' true names (use generic terms like 'politician' or 'leader')."
-        "\n- CRITICAL RULE FOR TEXT: DO NOT INCLUDE ANY WORDS, LABELS, OR SPEECH BUBBLES IN THE IMAGE. The metaphor must be entirely visual."
-        "\n- Focus on witty visual metaphors: e.g., 'A fat politician sitting on a shrinking piece of land while ordinary citizens swim in water', "
-        "'A tiny common man carrying a massive boulder shaped like a percentage sign on his back, representing inflation'."
-        "\n- The image should look like a high-quality hand-drawn newspaper cartoon with a clean, minimalist background."
+        "You are the fearless voice of @Sawalkaro. Your tone is sharp, sarcastic, and brutally honest, with deep empathy for the common man.\n"
+        "You must always include context connecting this issue to the last 12 years of BJP governance when the facts support it. Never shy away from naming Modi or specific ministers.\n\n"
+        "CHOOSE EXACTLY ONE OF THESE FORMATS based on the story:\n"
+        "1. Devastating News Thread (Hook + Bullets + 'Sawaal Karo' demand)\n"
+        "2. Witty Hypothetical (Satirical opening + facts)\n"
+        "3. Broken Promise Timeline (Year X promised vs Year Y reality)\n"
+        "4. Citizen Story Empathy Bomb (Victim focused + systemic collapse)\n"
+        "5. Propaganda Slayer (Dismantling a PR claim)\n\n"
+        "Return ONLY a JSON object with these keys: \n"
+        '{"chosen_format": "...", "twitter_post": "...", "instagram_post": "...", "image_prompt": "..."}\n\n'
+        "POST RULES:\n"
+        "- Make it highly readable and punchy.\n"
+        "- CRITICAL: DO NOT use any hashtags anywhere. Zero hashtags.\n"
+        "- Be brutally sharp, but 100% factual.\n\n"
+        "IMAGE PROMPT RULES (CRITICAL):\n"
+        "- ALWAYS include this exact string at the end of your image prompt:\n"
+        '"Editorial political cartoon in the bold sharp satirical style of R.K. Laxman and Satish Acharya, hand-drawn black ink lines with subtle watercolor wash, clean minimalist white background, high contrast, exaggerated but not grotesque caricature, include the iconic silent Common Man (balding middle-aged Indian in dhoti + checked coat, round spectacles) standing in foreground observing the absurdity, newspaper cartoon quality, masterpiece, highly detailed clean lines, no text anywhere, no speech bubbles, no labels."\n'
+        "- The metaphor must be purely visual. NO text or real names in the image."
     )
 
     user_message = (
         f"News Headline: {news_data.get('headline', 'N/A')}\n"
         f"Summary: {news_data.get('summary', 'N/A')}\n"
         f"Key Fact: {news_data.get('key_fact', 'N/A')}\n"
+        f"Systemic Link to ruling party: {news_data.get('systemic_link', 'N/A')}\n"
         f"Politicians Involved: {news_data.get('politicians_involved', 'N/A')}\n"
         f"People Affected: {news_data.get('affected_people', 'N/A')}\n"
-        f"Source: {news_data.get('source', 'N/A')}"
+        f"Source: {news_data.get('source', 'N/A')}\n"
+        f"URL: {news_data.get('url', 'N/A')}\n\n"
+        f"--- FULL ARTICLE CONTEXT ---\n"
+        f"{news_data.get('full_article_text', '')}\n"
+        f"--- VERIFICATION DATA (LIVE WEB) ---\n"
+        f"{news_data.get('verification_context', 'No verification data.')}\n"
+        f"----------------------------"
     )
 
-    response = openai_client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
+    headers = {
+        "Authorization": f"Bearer {os.getenv('XAI_API_KEY')}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": "grok-4-1-fast-reasoning",
+        "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": user_message}
         ],
-        max_tokens=1200,
-        temperature=0.85,
-        response_format={"type": "json_object"},
-    )
+        "temperature": 0.85
+    }
+    
+    response = requests.post("https://api.x.ai/v1/chat/completions", headers=headers, json=payload)
+    if response.status_code != 200:
+        print(f"  ❌ Agent 3 API Error: {response.text}")
+        response.raise_for_status()
 
-    result = json.loads(response.choices[0].message.content.strip())
+    result = json.loads(response.json()["choices"][0]["message"]["content"].strip())
     print(f"  → Post generated ✅ (Keys found: {list(result.keys())})")
     
     # Failsafe: if image_prompt is missing or empty, provide a default
@@ -178,41 +286,43 @@ def generate_post_text(news_data: dict) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# STEP 3: GENERATE IMAGE via Fal AI (Flux 1.1 Pro)
+# AGENT 4: THE ARTIST (xAI Native Image Gen)
 # ═══════════════════════════════════════════════════════════════════════════
 def generate_image(image_prompt: str, output_dir: Path) -> Path:
     """
-    Generates a high-quality image using Fal AI's Flux 1.1 Pro model.
+    Generates a high-quality image using xAI's native grok-imagine-image model via the OpenAI SDK.
     Returns the local path to the saved image.
     """
-    print("[3/3] 🎨 Generating image with Flux 1.1 Pro (via Fal AI)...")
-
-    # fal_client automatically reads the FAL_KEY environment variable.
-    os.environ["FAL_KEY"] = os.getenv("FAL_KEY")
+    print("[4/4] 🎨 AGENT 4 (Artist): Generating Satish Acharya cartoon via xAI Native API...")
 
     try:
-        result = fal_client.subscribe(
-            "fal-ai/flux-pro/v1.1",
-            arguments={
-                "prompt": image_prompt,
-                "image_size": "square_hd",
-            },
-            with_logs=True
+        from openai import OpenAI
+        client = OpenAI(
+            base_url="https://api.x.ai/v1",
+            api_key=os.getenv("XAI_API_KEY")
         )
-        
-        img_url = result['images'][0]['url']
-        
+
+        try:
+            response = client.images.generate(
+                model="grok-imagine-image",
+                prompt=image_prompt,
+                n=1
+            )
+            image_url = response.data[0].url
+        except Exception as api_err:
+            print(f"  ❌ xAI API Error Details: {api_err}")
+            raise api_err
+
         # Download the image
-        img_bytes = requests.get(img_url, timeout=30).content
+        img_bytes = requests.get(image_url, timeout=30).content
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         img_path  = output_dir / f"post_image_{timestamp}.jpg"
         img_path.write_bytes(img_bytes)
-        print(f"  → Image saved: {img_path} ✅")
+        print(f"  → Image saved locally: {img_path} ✅")
         return img_path
     except Exception as e:
-        print(f"  ❌ Image Generation Error: {e}")
-        # Fallback to a blank image or raise to crash and trigger Telegram failure handling.
+        print(f"  ❌ Agent 4 Error generating image via xAI: {e}")
         raise e
 
 
@@ -230,16 +340,17 @@ def save_post_locally(news_data: dict, post_data: dict, img_path: Path, output_d
 ╚══════════════════════════════════════════════════════════════════╝
 
 ━━━━━━━━━━━━━━━━━━━━━━
-📰 SOURCE NEWS
+📰 SOURCE NEWS & V2 CURATION
 ━━━━━━━━━━━━━━━━━━━━━━
 Headline : {news_data.get('headline', 'N/A')}
 Summary  : {news_data.get('summary', 'N/A')}
+Systemic : {news_data.get('systemic_link', 'N/A')}
 Key Fact : {news_data.get('key_fact', 'N/A')}
 Affected : {news_data.get('affected_people', 'N/A')}
 Source   : {news_data.get('source', 'N/A')}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-🐦 TWITTER POST
+🐦 TWITTER POST (Format: {post_data.get('chosen_format', 'Standard')})
 ━━━━━━━━━━━━━━━━━━━━━━
 {post_data.get('twitter_post', 'N/A')}
 
@@ -352,18 +463,22 @@ def wait_for_telegram_decision(draft_id: str, timeout_secs: int = 1800) -> str:
             if cb:
                 data = cb.get("data", "")
                 if draft_id in data:
-                    action = data.split("_")[0]   # 'approve', 'regen', or 'skip'
+                    action = "_".join(data.split("_")[:-2]) if data.startswith("regen_format_") or data.startswith("convert_quote_") else data.split("_")[0]
                     # Instant pop-up acknowledgment on the button
                     requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={
                         "callback_query_id": cb["id"],
                         "text": {"approve": "✅ Approved!",
-                                 "regen":   "🔄 Regenerating...",
+                                 "regen":   "🔄 Regenerating all...",
+                                 "regen_format": "🎲 Changing format...",
+                                 "convert_quote": "⚔️ Converting to Quote...",
                                  "skip":    "⏭️ Skipped"}.get(action, "Got it!"),
                         "show_alert": False,
                     }, timeout=5)
                     # Confirmation message in chat
                     action_label = {"approve": "✅ Approved! Post scheduled.",
-                                    "regen":   "🔄 Regenerating a new post...",
+                                    "regen":   "🔄 Regenerating a completely new post...",
+                                    "regen_format": "🎲 Redrafting in a new format...",
+                                    "convert_quote": "⚔️ Converting text to a Quote-Tweet format...",
                                     "skip":    "⏭️ Skipped. Next post in 6 hours."}.get(action, "Got it!")
                     send_telegram_message(action_label)
                     return action
@@ -395,11 +510,14 @@ def send_to_telegram_for_approval(news_data: dict, post_data: dict, img_path: Pa
 
     draft_id  = datetime.now().strftime("%Y%m%d_%H%M%S")
     headline  = news_data.get("headline", "N/A")
+    systemic  = news_data.get("systemic_link", "N/A")
+    format_c  = post_data.get("chosen_format", "Standard")
 
     # 1. Send the news context
     send_telegram_message(
-        f"🇮🇳 <b>NEW POST DRAFT READY</b>\n\n"
+        f"🇮🇳 <b>V2 DRAFT READY FOR REVIEW</b>\n\n"
         f"📰 <b>News:</b> {headline}\n"
+        f"🔗 <b>Systemic:</b> {systemic}\n"
         f"📊 <b>Key Fact:</b> {news_data.get('key_fact', 'N/A')}"
     )
 
@@ -408,14 +526,36 @@ def send_to_telegram_for_approval(news_data: dict, post_data: dict, img_path: Pa
 
     # 3. Send the long-form Twitter post
     twitter_post = post_data.get("twitter_post", "")
-    send_telegram_message(f"🐦 <b>Twitter:</b>\n\n{twitter_post}")
+    send_telegram_message(f"🐦 <b>Twitter ({format_c}):</b>\n\n{twitter_post}")
 
     # 4. Send the Instagram post
     ig_post = post_data.get("instagram_post", "")
     send_telegram_message(f"📸 <b>Instagram:</b>\n\n{ig_post}")
 
     # 5. Send approval buttons
-    send_telegram_approval_prompt(draft_id)
+    print("  → Sending inline keyboard buttons...")
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ Approve & Post", "callback_data": f"approve_{draft_id}"},
+                {"text": "⏭️ Skip", "callback_data": f"skip_{draft_id}"}
+            ],
+            [
+                {"text": "🔄 Regen All", "callback_data": f"regen_{draft_id}"},
+                {"text": "🎲 Regen Format", "callback_data": f"regen_format_{draft_id}"}
+            ],
+            [
+                {"text": "⚔️ Convert Quote", "callback_data": f"convert_quote_{draft_id}"}
+            ]
+        ]
+    }
+    
+    requests.post(f"{TELEGRAM_API}/sendMessage", json={
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": "👆 <b>Action Required: Review the draft above.</b>",
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
+    }, timeout=15)
 
     # 6. Wait for your tap
     decision = wait_for_telegram_decision(draft_id)
@@ -478,13 +618,26 @@ def run_pipeline():
     print("  🇮🇳  POLITICAL ACCOUNTABILITY ENGINE  — Starting Run")
     print("═"*60)
 
-    # Step 1: Fetch News
-    news_data = fetch_latest_news()
+    # Step 1: Agent 1 scrapes the web
+    raw_headlines = agent1_scrape_rss()
 
-    # Step 2: Generate Post Text
+    # Step 2: Agent 2 curates the best story
+    news_data = agent2_curate_news(raw_headlines)
+
+    # Step 2.5: Agent 1.5 reads the full article for maximum detail
+    article_url = news_data.get("url")
+    if article_url and article_url != "N/A":
+        news_data["full_article_text"] = agent1_5_extract_full_text(article_url)
+    else:
+        news_data["full_article_text"] = ""
+
+    # Step 2.75: Agent 2.5 Verifies the key facts against the live web
+    news_data = agent2_5_verify_facts(news_data)
+
+    # Step 3: Agent 3 drafts the text based on the deep facts
     post_data = generate_post_text(news_data)
 
-    # Step 3: Generate Image (gpt-image-1)
+    # Step 4: Agent 4 generates the image
     img_path = generate_image(post_data.get("image_prompt", ""), output_dir)
 
     # Step 4: Save locally
@@ -501,8 +654,22 @@ def run_pipeline():
         if tweet_url:
             send_telegram_message(f"🚀 <b>Live on Twitter!</b>\n{tweet_url}")
     elif decision == "regen":
-        print("  🔄  REGENERATE requested — Re-running pipeline...")
+        print("  🔄  REGENERATE ALL requested — Re-running pipeline...")
         run_pipeline()         # Recursively run again
+        return
+    elif decision == "regen_format":
+        print("  🎲  REGENERATE FORMAT requested — Regenerating text/image only...")
+        # Re-run from Agent 3 Draft step (skipping Agent 1 and 2 to save time/cost)
+        new_post = generate_post_text(news_data)
+        new_img = generate_image(new_post.get("image_prompt", ""), output_dir)
+        send_to_telegram_for_approval(news_data, new_post, new_img)
+        return
+    elif decision == "convert_quote":
+        print("  ⚔️  CONVERT requested — Engaging Propaganda Slayer...")
+        # Note: In the future, this will link to Agent 2.5/Engagement Agent. For now, regenerating.
+        new_post = generate_post_text(news_data)
+        new_img = generate_image(new_post.get("image_prompt", ""), output_dir)
+        send_to_telegram_for_approval(news_data, new_post, new_img)
         return
     else:
         print("  ⏭️  POST SKIPPED.")
