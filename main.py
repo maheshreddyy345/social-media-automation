@@ -231,9 +231,12 @@ def generate_post_text(news_data: dict) -> dict:
         "Return ONLY a JSON object with these keys: \n"
         '{"chosen_format": "...", "twitter_post": "...", "instagram_post": "...", "image_prompt": "..."}\n\n'
         "POST RULES:\n"
-        "- Make it highly readable and punchy.\n"
+        "- DO NOT be overly dramatic, highly emotional, or use cringeworthy phrases (e.g., 'drops bomb', 'ARROW THROUGH HEARTS').\n"
+        "- Tone MUST be cold, analytical, data-driven, and ruthlessly factual like a top-tier investigative journalist.\n"
+        "- Write LONG-FORM copy. The `twitter_post` must be a high-effort analytical thread (format it with line breaks) that thoroughly explains the issue, the data, and the political failure. Ignore typical character limits.\n"
+        "- Use professional, cynical sarcasm rather than childish name-calling.\n"
         "- CRITICAL: DO NOT use any hashtags anywhere. Zero hashtags.\n"
-        "- Be brutally sharp, but 100% factual.\n\n"
+        "- Always end by demanding accountability with the exact phrase 'Sawaal Karo'.\n\n"
         "IMAGE PROMPT RULES (CRITICAL):\n"
         "- ALWAYS include this exact string at the end of your image prompt:\n"
         '"Editorial political cartoon in the bold sharp satirical style of R.K. Laxman and Satish Acharya, hand-drawn black ink lines with subtle watercolor wash, clean minimalist white background, high contrast, exaggerated but not grotesque caricature, include the iconic silent Common Man (balding middle-aged Indian in dhoti + checked coat, round spectacles) standing in foreground observing the absurdity, newspaper cartoon quality, masterpiece, highly detailed clean lines, no text anywhere, no speech bubbles, no labels."\n'
