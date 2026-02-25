@@ -483,7 +483,7 @@ def wait_for_telegram_decision(draft_id: str, timeout_secs: int = 1800) -> str:
                                     "regen":   "🔄 Regenerating a completely new post...",
                                     "regen_format": "🎲 Redrafting in a new format...",
                                     "convert_quote": "⚔️ Converting text to a Quote-Tweet format...",
-                                    "skip":    "⏭️ Skipped. Next post in 6 hours."}.get(action, "Got it!")
+                                    "skip":    "⏭️ Skipped. Next post in 3 hours."}.get(action, "Got it!")
                     send_telegram_message(action_label)
                     return action
 
@@ -495,7 +495,7 @@ def wait_for_telegram_decision(draft_id: str, timeout_secs: int = 1800) -> str:
                 if action:
                     action_label = {"approve": "✅ Approved! Post scheduled.",
                                     "regen":   "🔄 Regenerating a new post...",
-                                    "skip":    "⏭️ Skipped. Next post in 6 hours."}.get(action, "Got it!")
+                                    "skip":    "⏭️ Skipped. Next post in 3 hours."}.get(action, "Got it!")
                     send_telegram_message(action_label)
                     return action
 
