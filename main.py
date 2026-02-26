@@ -121,13 +121,22 @@ def main():
 
     # 4. Notify Telegram
     if TELEGRAM_CHAT_ID:
-        send_telegram_message("📢 <b>V6 ENTERPRISE CREW FINISHED DRAFTING THREAD</b>\n\nI have attached the payload to Cloud SQL. Review terminal for details.")
+        import html
+        print("\n[SYSTEM] 📱 Pushing Thread to Telegram API...")
+        message = "🚨 <b>V7 AUTONOMOUS DRAFT</b> 🚨\n\n"
+        for i, tweet in enumerate(thread_result.tweets):
+            safe_tweet = html.escape(tweet)
+            message += f"<b>Tweet {i+1}:</b>\n{safe_tweet}\n\n"
+            
+        send_telegram_message(message)
 
     # 5. Native Thread Publishing
     print("\n[SYSTEM] Starting publisher pipeline...")
     # publish_thread_to_twitter(thread_result) # Skipping live post during test
-    print(thread_result.tweets)
-    print("\n✅ V6 Pipeline Complete.")
+    for tweet in thread_result.tweets:
+       print(tweet)
+       print("---")
+    print("\n✅ V7 Pipeline Complete.")
 
 if __name__ == "__main__":
     main()
