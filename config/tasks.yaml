@@ -1,0 +1,45 @@
+gather_intelligence:
+  description: >
+    Scrape the 10 most recent tweets from the configured list of target independent media X accounts.
+    Extract the full text, url, metrics, and any attached media (videos/images).
+    Return a list of all raw tweets with their media links.
+  expected_output: >
+    A list of JSON objects representing the scraped tweets.
+  agent: intelligence_agent
+
+curate_top_story:
+  description: >
+    Take the raw list of tweets from the Intelligence Agent. 
+    Score each one out of 10. Give 10s to concrete infrastructure failures (bridge collapses, train derailments), massive paper leaks, or financial scams.
+    Give 1s to regular political rallies or generic "party A attacked party B" tweets.
+    Pick the single highest scoring tweet. Extract the 'headline', 'key_fact', 'primary_politician_involved'.
+  expected_output: >
+    A JSON object containing the winning story data, the headline, key_fact, url, and primary_politician_involved.
+  agent: editor_in_chief_agent
+
+fetch_forensic_media:
+  description: >
+    Take the 'primary_politician_involved' and the context from the Curator.
+    Use web search tools to find either a high-res Wikipedia photo of the politician or an official graph/document related to the subject.
+    Download it and save the local path. If none found or not needed, return None. 
+  expected_output: >
+    A local file path string to the downloaded supplementary media, or an empty string.
+  agent: media_forensics_agent
+
+write_thread_draft:
+  description: >
+    Using the finalized facts from the Curator, write the "Sawaal Karo" long-form draft.
+    Adopt the "Weary Insider" persona. No emojis. No yell. Just facts, dry sarcasm, and a demand for accountability at the end.
+    Make it detailed but punchy. 
+  expected_output: >
+    A single long string of the finalized drafted text.
+  agent: ghostwriter_agent
+
+split_into_thread:
+  description: >
+    Take the long draft from the Ghostwriter. Split it logically into a sequence of tweets.
+    Each tweet must be less than 280 characters. Do not cut sentences in half.
+    Return strictly a list of strings.
+  expected_output: >
+    A Python list (array) of strings, where each string is a tweet in the thread.
+  agent: thread_architect_agent

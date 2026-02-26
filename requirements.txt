@@ -7,3 +7,10 @@ feedparser
 beautifulsoup4
 lxml
 duckduckgo-search
+
+crewai==1.9.2
+langchain-xai==0.2.4
+psycopg2-binary==2.9.11
+SQLAlchemy==2.0.40
+
+
