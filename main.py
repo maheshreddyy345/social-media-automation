@@ -265,7 +265,7 @@ def generate_post_text(story_data: dict) -> dict:
         "4. Citizen Story Empathy Bomb (Victim focused + systemic collapse)\n"
         "5. Propaganda Slayer (Dismantling a PR claim)\n\n"
         "Return ONLY a JSON object with these keys: \n"
-        '{"chosen_format": "...", "twitter_post": "...", "instagram_post": "..."}\n\n'
+        '{"chosen_format": "...", "twitter_post": "..."}\n\n'
         "POST RULES:\n"
         "- Tone MUST be highly conversational, natural, and human. Write exactly how a passionate, highly informed citizen would speak to a friend.\n"
         "- AVOID REPETITIVE PHRASES: Do NOT force phrases like '12 years of BJP governance' into every post. It sounds robotic. Instead, use accurate context (e.g., if the story is in Gujarat, mention their 26+ year rule; if it's railways, mention the specific minister; if it's national, refer to the Centre or Delhi).\n"
@@ -368,12 +368,6 @@ URL      : {story_data.get('url', 'N/A')}
 🐦 TWITTER POST (Format: {post_data.get('chosen_format', 'Standard')})
 ━━━━━━━━━━━━━━━━━━━━━━
 {post_data.get('twitter_post', 'N/A')}
-
-━━━━━━━━━━━━━━━━━━━━━━
-📸 INSTAGRAM POST
-━━━━━━━━━━━━━━━━━━━━━━
-{post_data.get('instagram_post', 'N/A')}
-
 ━━━━━━━━━━━━━━━━━━━━━━
 🖼️  REAL MEDIA
 ━━━━━━━━━━━━━━━━━━━━━━
