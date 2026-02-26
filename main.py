@@ -48,6 +48,26 @@ def validate_config():
             "Please update your .env file and try again."
         )
 
+HISTORY_FILE = Path("drafts/history.json")
+
+def load_history() -> set:
+    """Loads previously posted tweet URLs to avoid duplicates."""
+    if HISTORY_FILE.exists():
+        try:
+            items = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+            return set(items)
+        except Exception:
+            return set()
+    return set()
+
+def save_to_history(url: str):
+    """Saves a curated tweet URL to history."""
+    if not url or url == "N/A":
+        return
+    history = load_history()
+    history.add(url)
+    HISTORY_FILE.write_text(json.dumps(list(history), indent=2), encoding="utf-8")
+
 # ═══════════════════════════════════════════════════════════════════════════
 # AGENT 1: THE SCRAPER (X Timeline Extractor)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -62,6 +82,7 @@ def agent1_scrape_x_timelines() -> list:
     
     bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
     client = tweepy.Client(bearer_token=bearer_token)
+    history_urls = load_history()
     
     all_tweets = []
     
@@ -79,7 +100,7 @@ def agent1_scrape_x_timelines() -> list:
                 exclude=["retweets", "replies"],
                 tweet_fields=["created_at", "public_metrics"],
                 expansions=["attachments.media_keys"],
-                media_fields=["url", "type", "variants", "preview_image_url"]
+                media_fields=["url", "type", "variants", "preview_image_url", "duration_ms"]
             )
             
             if not tweets_response.data:
@@ -91,6 +112,10 @@ def agent1_scrape_x_timelines() -> list:
                     media_dict[media.media_key] = media
                     
             for tweet in tweets_response.data:
+                tweet_url = f"https://twitter.com/{username}/status/{tweet.id}"
+                if tweet_url in history_urls:
+                    continue  # Skip tweets we've already curated in the past
+                
                 # We prioritize tweets WITH MEDIA (images or videos)
                 if tweet.attachments and 'media_keys' in tweet.attachments:
                     media_items = []
@@ -98,17 +123,22 @@ def agent1_scrape_x_timelines() -> list:
                         if mk in media_dict:
                             media = media_dict[mk]
                             m_url = media.url or media.preview_image_url
-                            if media.type == 'video' and hasattr(media, 'variants'):
-                                best_variant = None
-                                highest_bitrate = -1
-                                for variant in media.variants:
-                                    if variant.get('content_type') == 'video/mp4':
-                                        br = variant.get('bit_rate', 0)
-                                        if br > highest_bitrate:
-                                            highest_bitrate = br
-                                            best_variant = variant.get('url')
-                                if best_variant:
-                                    m_url = best_variant
+                            if media.type == 'video':
+                                duration = getattr(media, 'duration_ms', 0)
+                                if duration > 120000:
+                                    continue # Twitter Free/Premium tier often blocks videos > 2 minutes
+                                
+                                if hasattr(media, 'variants'):
+                                    best_variant = None
+                                    highest_bitrate = -1
+                                    for variant in media.variants:
+                                        if variant.get('content_type') == 'video/mp4':
+                                            br = variant.get('bit_rate', 0)
+                                            if br > highest_bitrate:
+                                                highest_bitrate = br
+                                                best_variant = variant.get('url')
+                                    if best_variant:
+                                        m_url = best_variant
                             media_items.append({"type": media.type, "url": m_url})
                             
                     if media_items:
@@ -550,6 +580,9 @@ def run_pipeline():
 
     # Step 2: Agent 2 curates the best tweet
     story_data = agent2_curate_tweets(raw_tweets)
+    
+    # Memory: Save to history so we never pick this exact URL again
+    save_to_history(story_data.get("url", ""))
 
     # Step 2.5: Verify facts
     story_data = agent2_5_verify_facts(story_data)
