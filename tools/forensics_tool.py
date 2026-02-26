@@ -1,4 +1,4 @@
-from langchain.tools import tool
+from crewai.tools import tool
 from duckduckgo_search import DDGS
 import requests
 from pathlib import Path

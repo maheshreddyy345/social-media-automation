@@ -1,4 +1,4 @@
-from langchain.tools import tool
+from crewai.tools import tool
 import tweepy
 import os
 import json

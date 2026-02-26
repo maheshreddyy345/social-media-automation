@@ -4,14 +4,18 @@ from langchain_openai import ChatOpenAI
 from models.post import CurationResult, ThreadResult
 from tools.scraper_tool import scrape_critical_tweets
 from tools.forensics_tool import search_and_download_forensics, verify_fact_via_web
+from tools.research_tool import perplexity_deep_research
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# We will use xAI's Grok via the Langchain ChatOpenAI wrapper (since it's OpenAI-compatible)
+# Force CrewAI and LangChain to natively route ALL "OpenAI" traffic to xAI
+os.environ["OPENAI_API_KEY"] = os.getenv("XAI_API_KEY")
+os.environ["OPENAI_BASE_URL"] = "https://api.x.ai/v1"
+
 llm = ChatOpenAI(
-    model="grok-4-1-fast-reasoning", # or grok-3 depending on current availability
+    model="grok-3",
     api_key=os.getenv("XAI_API_KEY"),
     base_url="https://api.x.ai/v1"
 )
@@ -48,6 +52,21 @@ class AccountabilityCrew:
             tools=[search_and_download_forensics, verify_fact_via_web]
         )
 
+    def deep_researcher_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['deep_researcher_agent'],
+            llm=llm,
+            verbose=True,
+            tools=[perplexity_deep_research]
+        )
+
+    def framing_strategist_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['framing_strategist_agent'],
+            llm=llm,
+            verbose=True
+        )
+
     def ghostwriter_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['ghostwriter_agent'],
@@ -82,6 +101,18 @@ class AccountabilityCrew:
             agent=self.media_forensics_agent()
         )
 
+    def deep_dive_research_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['deep_dive_research_task'],
+            agent=self.deep_researcher_agent()
+        )
+
+    def develop_framing_strategy_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['develop_framing_strategy_task'],
+            agent=self.framing_strategist_agent()
+        )
+
     def write_thread_draft_task(self) -> Task:
         return Task(
             config=self.tasks_config['write_thread_draft'],
@@ -102,6 +133,8 @@ class AccountabilityCrew:
                 self.intelligence_agent(),
                 self.editor_in_chief_agent(),
                 self.media_forensics_agent(),
+                self.deep_researcher_agent(),
+                self.framing_strategist_agent(),
                 self.ghostwriter_agent(),
                 self.thread_architect_agent()
             ],
@@ -109,6 +142,8 @@ class AccountabilityCrew:
                 self.gather_intelligence_task(),
                 self.curate_top_story_task(),
                 self.fetch_forensic_media_task(),
+                self.deep_dive_research_task(),
+                self.develop_framing_strategy_task(),
                 self.write_thread_draft_task(),
                 self.split_into_thread_task()
             ],
