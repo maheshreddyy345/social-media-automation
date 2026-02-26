@@ -77,7 +77,9 @@ def agent1_scrape_x_timelines() -> list:
     
     target_accounts = [
         "AltNews", "zoo_bear", "dhruv_rathee", "RTI_India", "SaketGokhale", 
-        "ravishndtv", "thewire_in", "suchetadalal", "thecaravanindia", "newslaundry"
+        "ravishndtv", "thewire_in", "suchetadalal", "thecaravanindia", "newslaundry",
+        "pbhushan1", "RanaAyyub", "SupriyaShrinate", "Jairam_Ramesh", "scribe_prashant",
+        "Kisanektamorcha", "MahuaMoitra"
     ]
     
     bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
