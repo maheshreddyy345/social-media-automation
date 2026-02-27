@@ -108,10 +108,30 @@ def main():
         # Pydantic JSON string parsing
         import json
         import re
+        import ast
+        
         thread_data = getattr(raw_result, 'json_dict', None)
+        raw_text = str(raw_result)
+        
         if not thread_data:
-             clean = re.sub(r"^```json\s*|```$", "", str(raw_result), flags=re.MULTILINE).strip()
-             thread_data = json.loads(clean)
+             try:
+                 clean = re.sub(r"^```json\s*|```$", "", raw_text, flags=re.MULTILINE).strip()
+                 thread_data = json.loads(clean)
+             except Exception:
+                 thread_data = {"tweets": []}
+                 t_match = re.search(r'tweets\s*=\s*(\[.*?\])', raw_text, re.DOTALL)
+                 if t_match:
+                     try:
+                         thread_data["tweets"] = ast.literal_eval(t_match.group(1))
+                     except Exception:
+                         pass
+                 m_match = re.search(r"media_path\s*=\s*['\"]([^'\"]+)['\"]", raw_text)
+                 if m_match:
+                     thread_data["media_path"] = m_match.group(1)
+                     
+        if not thread_data or not thread_data.get("tweets"):
+             if not thread_data: thread_data = {}
+             thread_data["tweets"] = [raw_text]
              
         thread_result = ThreadResult(**thread_data)
     except Exception as e:
@@ -132,11 +152,14 @@ def main():
 
     # 4. Notify Telegram
     if TELEGRAM_CHAT_ID:
-        import html
         print("\n[SYSTEM] 📱 Pushing Thread to Telegram API...")
         message = "🚨 <b>V7 AUTONOMOUS DRAFT</b> 🚨\n\n"
+        
+        def escape_tg(t):
+            return t.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            
         for i, tweet in enumerate(thread_result.tweets):
-            safe_tweet = html.escape(tweet)
+            safe_tweet = escape_tg(tweet)
             message += f"<b>Tweet {i+1}:</b>\n{safe_tweet}\n\n"
             
         send_telegram_message(message)
