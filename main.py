@@ -61,10 +61,13 @@ def publish_thread_to_twitter(thread_result: ThreadResult):
     
     # 1. Upload Media
     media_ids = []
-    if getattr(thread_result, 'media_path', None) and os.path.exists(thread_result.media_path):
-        print(f"  --> Uploading Media: {thread_result.media_path}")
-        media = api.media_upload(filename=thread_result.media_path)
-        media_ids.append(media.media_id)
+    media_path = getattr(thread_result, 'media_path', None)
+    if media_path:
+        media_path = media_path.replace('\\\\', '/').replace('\\', '/')
+        if os.path.exists(media_path):
+            print(f"  --> Uploading Media: {media_path}")
+            media = api.media_upload(filename=media_path)
+            media_ids.append(media.media_id)
         
     # 2. Chain tweets together
     previous_tweet_id = None
@@ -127,7 +130,7 @@ def main():
                          pass
                  m_match = re.search(r"media_path\s*=\s*['\"]([^'\"]+)['\"]", raw_text)
                  if m_match:
-                     thread_data["media_path"] = m_match.group(1)
+                     thread_data["media_path"] = m_match.group(1).replace('\\\\', '/').replace('\\', '/')
                      
         if not thread_data or not thread_data.get("tweets"):
              if not thread_data: thread_data = {}

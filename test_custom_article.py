@@ -94,13 +94,15 @@ if __name__ == "__main__":
                     ]
                 ]
             }
-            if media_path and os.path.exists(media_path):
-                print(f"Sending Photo to Telegram: {media_path}")
-                try:
-                    with open(media_path, "rb") as photo:
-                        requests.post(f"{TELEGRAM_API}/sendPhoto", data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": photo}, timeout=25)
-                except Exception as e:
-                    print(f"Failed to send photo: {e}")
+            if media_path:
+                media_path = media_path.replace('\\\\', '/').replace('\\', '/')
+                if os.path.exists(media_path):
+                    print(f"Sending Photo to Telegram: {media_path}")
+                    try:
+                        with open(media_path, "rb") as photo:
+                            requests.post(f"{TELEGRAM_API}/sendPhoto", data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": photo}, timeout=25)
+                    except Exception as e:
+                        print(f"Failed to send photo: {e}")
                     
             requests.post(f"{TELEGRAM_API}/sendMessage", json={
                 "chat_id": TELEGRAM_CHAT_ID,
@@ -131,7 +133,7 @@ if __name__ == "__main__":
                          pass
                  m_match = re.search(r"media_path\s*=\s*['\"]([^'\"]+)['\"]", raw_text)
                  if m_match:
-                     thread_data["media_path"] = m_match.group(1)
+                     thread_data["media_path"] = m_match.group(1).replace('\\\\', '/').replace('\\', '/')
                      
         if not thread_data.get("tweets"):
              thread_data["tweets"] = [raw_text]

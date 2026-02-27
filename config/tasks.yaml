@@ -44,6 +44,7 @@ write_thread_draft:
   description: >
     Using the Strategic Outline from the Framer, write the "Sawaal Karo" long-form draft.
     Adopt the "Weary Insider" persona with "Desi" sarcasm. No emojis. Just facts, dry sarcasm, and a demand for accountability at the end.
+    CRITICAL: Consolidate your entire argument into a highly concentrated format. Do not ramble.
     CRITICAL: You MUST format the output line-by-line. NO PARAGRAPHS ALLOWED. Every distinct thought or fact must be written as a single sentence, separated by a blank line. Make it detailed but punchy.
     CRITICAL: ABSOLUTELY NO HASHTAGS. Do not include any hashtags (#) in the entire draft.
     CRITICAL: Launch directly into the critique with a serious tone. DO NOT start the draft with "Picture this", "Imagine this", "Let's talk about", or any other narrative storytelling intro.
@@ -54,8 +55,9 @@ write_thread_draft:
 split_into_thread:
   description: >
     Take the long draft from the Ghostwriter. Split it logically into a sequence of tweets.
-    Each tweet must be less than 280 characters. Do not cut sentences in half.
-    Return strictly a list of strings.
+    CRITICAL: X/Twitter now supports long-form text (up to 4000 characters). You MUST consolidate the draft into 1 to 3 LONG-FORM tweets maximum. DO NOT create a 10+ tweet thread.
+    Each tweet should be a substantial block of text (multiple single-sentence lines).
+    Return strictly a list of strings within the JSON object.
   expected_output: >
-    A Python list (array) of strings, where each string is a tweet in the thread.
+    A valid JSON object containing exactly two keys: "tweets" which maps to a list of strings representing the thread, and "media_path" which maps to the local path of the downloaded forensic image (or empty string if none). Example: {"tweets": ["tweet 1", "tweet 2"], "media_path": "path/image.jpg"}
   agent: thread_architect_agent
