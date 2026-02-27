@@ -24,10 +24,22 @@ TWITTER_ACCESS_TOKEN = os.getenv('TWITTER_ACCESS_TOKEN')
 TWITTER_ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 
 def send_telegram_message(text: str):
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ Approve & Schedule", "callback_data": "approve"},
+                {"text": "🔄 Regenerate", "callback_data": "regenerate"}
+            ],
+            [
+                {"text": "⏭️ Skip", "callback_data": "skip"}
+            ]
+        ]
+    }
     requests.post(f"{TELEGRAM_API}/sendMessage", json={
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
     }, timeout=15)
 
 def publish_thread_to_twitter(thread_result: ThreadResult):
@@ -94,11 +106,10 @@ def main():
     # Note: CrewAI Crew Outputs might be raw text depending on process, but we told The Architect to output ThreadResult JSON.
     try:
         # Pydantic JSON string parsing
-        if hasattr(raw_result, 'json_dict'):
-             thread_data = raw_result.json_dict
-        else:
-             import json
-             import re
+        import json
+        import re
+        thread_data = getattr(raw_result, 'json_dict', None)
+        if not thread_data:
              clean = re.sub(r"^```json\s*|```$", "", str(raw_result), flags=re.MULTILINE).strip()
              thread_data = json.loads(clean)
              

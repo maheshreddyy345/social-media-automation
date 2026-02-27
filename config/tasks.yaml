@@ -44,7 +44,8 @@ write_thread_draft:
   description: >
     Using the Strategic Outline from the Framer, write the "Sawaal Karo" long-form draft.
     Adopt the "Weary Insider" persona with "Desi" sarcasm. No emojis. Just facts, dry sarcasm, and a demand for accountability at the end.
-    CRITICAL: You MUST format the output line-by-line. NO PARAGRAPHS ALLOWED. Every distinct thought or fact must be separated by a newline. Make it detailed but punchy.
+    CRITICAL: You MUST format the output line-by-line. NO PARAGRAPHS ALLOWED. Every distinct thought or fact must be written as a single sentence, separated by a blank line. Make it detailed but punchy.
+    CRITICAL: ABSOLUTELY NO HASHTAGS. Do not include any hashtags (#) in the entire draft.
     CRITICAL: Launch directly into the critique with a serious tone. DO NOT start the draft with "Picture this", "Imagine this", "Let's talk about", or any other narrative storytelling intro.
   expected_output: >
     A single long string of the finalized drafted text, strictly formatted line-by-line without standard paragraphs.
