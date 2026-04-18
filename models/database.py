@@ -6,16 +6,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# GCP Cloud SQL Connection String
-# Format: postgresql://username:password@public_ip:5432/dbname
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "SocialMediaBotPassword2026!")
-DB_HOST = os.getenv("DB_HOST", "localhost")  # We will update this once GCP provisions the IP
-DB_NAME = os.getenv("DB_NAME", "postgres")
+# Default to SQLite on a local file; set DATABASE_URL env to override
+# with postgresql://user:pass@host:5432/dbname for multi-machine deploys.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///cold_open.db")
 
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:5432/{DB_NAME}"
+_engine_kwargs = {}
+if DATABASE_URL.startswith("sqlite"):
+    # APScheduler + scanner timers run in separate threads; SQLAlchemy needs this.
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

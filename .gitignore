@@ -7,6 +7,10 @@ __pycache__/
 # Secrets — NEVER commit this
 .env
 
+# SQLite database files
+*.db
+*.db-journal
+
 # Local drafts and logs
 drafts/
 logs/
