@@ -1,0 +1,13 @@
+[Unit]
+Description=Cold Open trending watch scanner (oneshot)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=bot
+Group=bot
+WorkingDirectory=/home/bot/social-media-automation
+EnvironmentFile=/home/bot/social-media-automation/.env
+ExecStart=/home/bot/venv/bin/python -m scanners.trending_watch
+StandardOutput=journal
+StandardError=journal

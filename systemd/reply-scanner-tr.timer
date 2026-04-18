@@ -1,0 +1,12 @@
+[Unit]
+Description=Run trending watch scanner every 60 min
+Requires=reply-scanner-tr.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=60min
+Unit=reply-scanner-tr.service
+AccuracySec=2min
+
+[Install]
+WantedBy=timers.target

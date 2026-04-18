@@ -10,6 +10,10 @@ duckduckgo-search
 
 crewai==1.9.2
 langchain-xai==0.2.4
+claude-agent-sdk
+anthropic>=0.40.0
+apscheduler>=3.10.0
+pyyaml
 psycopg2-binary==2.9.11
 SQLAlchemy==2.0.40
 

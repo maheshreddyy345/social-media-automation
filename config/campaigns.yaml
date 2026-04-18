@@ -1,0 +1,30 @@
+# Campaign definitions for the keyword scanner.
+# Add a new block per active theme. Commit and deploy — GCP VM picks it up on next scan.
+#
+# Fields:
+#   keywords:         list of quoted phrases OR'd into the Twitter search query.
+#   exclude_keywords: terms that disqualify a tweet (case-insensitive substring).
+#   stance_prompt:    short sentence injected into the reply generator to steer tone for THIS campaign.
+#   min_likes:        skip tweets below this like count (noise filter).
+#   max_per_scan:     cap how many candidates a single scan may enqueue for this campaign.
+#   enabled:          flip to false to pause without deleting.
+#   start_date / end_date: YYYY-MM-DD. Campaign only scanned inside this window (inclusive).
+
+campaigns:
+  - name: dhurandhar_celebrators
+    keywords:
+      - "Dhurandhar"
+      - "Vivek Agnihotri"
+    exclude_keywords:
+      - "boycott"
+      - "flop"
+      - "propaganda film"
+    stance_prompt: >
+      The film is Vivek Agnihotri propaganda dressed as patriotism.
+      Call out the record: taxpayer-funded screenings, history rewritten,
+      dissenters smeared. Sharp, not shrill.
+    min_likes: 20
+    max_per_scan: 5
+    enabled: true
+    start_date: 2026-04-15
+    end_date: 2026-05-31

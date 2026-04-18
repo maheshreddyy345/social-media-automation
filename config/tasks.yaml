@@ -42,7 +42,7 @@ develop_framing_strategy_task:
 
 write_thread_draft:
   description: >
-    Using the Strategic Outline from the Framer, write the "Sawaal Karo" long-form draft.
+    Using the Strategic Outline from the Framer, write the "Cold Open" long-form draft.
     Adopt the "Weary Insider" persona with "Desi" sarcasm. No emojis. Just facts, dry sarcasm, and a demand for accountability at the end.
     CRITICAL: Consolidate your entire argument into a highly concentrated format. Do not ramble.
     CRITICAL: You MUST format the output line-by-line. NO PARAGRAPHS ALLOWED. Every distinct thought or fact must be written as a single sentence, separated by a blank line. Make it detailed but punchy.

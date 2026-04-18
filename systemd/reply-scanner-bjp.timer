@@ -1,0 +1,12 @@
+[Unit]
+Description=Run BJP handle scanner every 15 min
+Requires=reply-scanner-bjp.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=reply-scanner-bjp.service
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

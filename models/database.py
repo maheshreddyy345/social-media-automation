@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, BigInteger, Index
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
@@ -29,6 +29,52 @@ class ContentLog(Base):
     politician = Column(String)
     drafted_thread = Column(Text)  # JSON array of tweets
     media_paths = Column(Text)     # Comma separated media paths
+
+
+class CandidateReply(Base):
+    __tablename__ = "candidate_replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    source = Column(String, index=True)  # bjp | keyword | trending
+    campaign_name = Column(String, index=True, nullable=True)
+    target_tweet_id = Column(String, index=True)
+    target_tweet_url = Column(String)
+    target_author = Column(String, index=True)
+    target_text = Column(Text)
+    drafted_text = Column(Text, nullable=True)
+    status = Column(String, index=True, default="pending_draft")
+    # pending_draft | pending_approval | approved | posted | skipped | post_failed | dropped
+    telegram_message_id = Column(BigInteger, nullable=True)
+    telegram_chat_id = Column(BigInteger, nullable=True)
+    regen_count = Column(Integer, default=0)
+    posted_url = Column(String, nullable=True)
+    posted_at = Column(DateTime, nullable=True)
+    error = Column(Text, nullable=True)
+
+
+class CampaignState(Base):
+    __tablename__ = "campaigns_state"
+
+    name = Column(String, primary_key=True)
+    posts_today = Column(Integer, default=0)
+    last_reset_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RateLimitState(Base):
+    __tablename__ = "rate_limit_state"
+
+    key = Column(String, primary_key=True)  # global | author:<handle> | campaign:<name>
+    window_start = Column(DateTime, default=datetime.utcnow)
+    count = Column(Integer, default=0)
+
+
+class SeenTweetId(Base):
+    __tablename__ = "seen_tweet_ids"
+
+    tweet_id = Column(String, primary_key=True)
+    first_seen_at = Column(DateTime, default=datetime.utcnow)
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)

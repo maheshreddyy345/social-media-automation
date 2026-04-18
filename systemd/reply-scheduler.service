@@ -1,0 +1,19 @@
+[Unit]
+Description=Cold Open reply scheduler (draft + post loop)
+After=network-online.target openclaw.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bot
+Group=bot
+WorkingDirectory=/home/bot/social-media-automation
+EnvironmentFile=/home/bot/social-media-automation/.env
+ExecStart=/home/bot/venv/bin/python -u reply_scheduler.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
