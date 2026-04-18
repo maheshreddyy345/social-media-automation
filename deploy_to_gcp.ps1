@@ -3,7 +3,7 @@ $zone = "us-central1-a"
 
 $remote = @'
 set -e
-cd /home/bot/social-media-automation
+cd /home/bot
 git pull origin main
 source /home/bot/venv/bin/activate
 pip install -r requirements.txt

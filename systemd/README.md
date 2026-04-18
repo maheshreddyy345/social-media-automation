@@ -1,10 +1,10 @@
 # Systemd units — Cold Open reply bot
 
-One-time setup on the VM (after `git pull` has landed these files under `/home/bot/social-media-automation/systemd/`):
+One-time setup on the VM (after `git pull` has landed these files under `/home/bot/systemd/`):
 
 ```bash
-sudo cp /home/bot/social-media-automation/systemd/*.service /etc/systemd/system/
-sudo cp /home/bot/social-media-automation/systemd/*.timer   /etc/systemd/system/
+sudo cp /home/bot/systemd/*.service /etc/systemd/system/
+sudo cp /home/bot/systemd/*.timer   /etc/systemd/system/
 sudo systemctl daemon-reload
 
 sudo systemctl enable --now openclaw.service
@@ -29,7 +29,7 @@ Kill switch:
 # Immediate stop
 sudo systemctl stop reply-scheduler.service
 # OR flip the env and restart — safer for in-flight drafts
-sed -i 's/^REPLY_BOT_ENABLED=.*/REPLY_BOT_ENABLED=false/' /home/bot/social-media-automation/.env
+sed -i 's/^REPLY_BOT_ENABLED=.*/REPLY_BOT_ENABLED=false/' /home/bot/.env
 sudo systemctl restart reply-scheduler.service
 ```
 

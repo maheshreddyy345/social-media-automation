@@ -17,9 +17,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd /home/bot/social-media-automation
+            cd /home/bot
             git pull origin main
-            source ../venv/bin/activate
+            source /home/bot/venv/bin/activate
             pip install -r requirements.txt
             pip install crewai langchain-xai psycopg2-binary SQLAlchemy duckduckgo-search anthropic apscheduler pyyaml
             sudo cp systemd/*.service /etc/systemd/system/
